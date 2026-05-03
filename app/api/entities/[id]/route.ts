@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { table } from "@/lib/supabase/tables";
+import { entityNameTaken } from "@/lib/api/entity-name";
 import {
   badRequest,
+  conflict,
   internalError,
   jsonOk,
   notFound,
@@ -152,6 +154,15 @@ export async function PATCH(
     if (body.name !== undefined) {
       const n = typeof body.name === "string" ? body.name.trim() : "";
       if (!n) return badRequest("name no puede estar vacío");
+      const taken = await entityNameTaken(
+        supabase,
+        entRow.entity_type_id,
+        n,
+        id
+      );
+      if (taken) {
+        return conflict("Ya existe una entidad con ese nombre en este tipo");
+      }
       entityUpdate.name = n;
     }
     if (body.slug !== undefined) {

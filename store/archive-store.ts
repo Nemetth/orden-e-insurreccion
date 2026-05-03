@@ -9,12 +9,21 @@ import type {
 
 export type ViewMode = "graph" | "dossier";
 
+export type ConfirmDeleteTarget =
+  | { kind: "type"; id: string; title: string }
+  | { kind: "entity"; id: string; title: string }
+  | { kind: "relationship"; id: string; title: string };
+
 export type ArchiveModalState =
   | { kind: "none" }
   | { kind: "createType" }
+  | { kind: "editType"; typeId: string }
   | { kind: "createEntity"; defaultTypeId?: string }
+  | { kind: "editEntity"; entityId: string }
   | { kind: "createRelationship"; defaultSourceId?: string }
-  | { kind: "addAttribute"; typeId: string };
+  | { kind: "editRelationship"; relationshipId: string }
+  | { kind: "addAttribute"; typeId: string }
+  | { kind: "confirmDelete"; target: ConfirmDeleteTarget };
 
 type ArchiveStore = {
   types: EntityTypeWithAttributes[];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ListPlus } from "lucide-react";
 
 import { archiveApi } from "@/lib/api/archive-client";
 import type { AttributeValueType } from "@/types/database";
@@ -27,11 +28,16 @@ export function AddAttributeModal({ typeId }: Props) {
   const [label, setLabel] = useState("");
   const [valueType, setValueType] = useState<AttributeValueType>("text");
   const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const k = key.trim().toLowerCase().replace(/\s+/g, "_");
-    if (!k || !label.trim()) return;
+    setFieldError(null);
+    if (!k || !label.trim()) {
+      setFieldError("Clave y etiqueta visibles son obligatorias.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -43,30 +49,46 @@ export function AddAttributeModal({ typeId }: Props) {
       await refreshAll();
       closeModal();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al agregar atributo");
+      const msg =
+        err instanceof Error ? err.message : "Error al agregar atributo";
+      setFieldError(msg);
+      setError(msg);
     } finally {
       setSaving(false);
     }
   }
 
+  const canSubmit = !!key.trim() && !!label.trim();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
       <div className="w-full max-w-md border border-archive-border bg-archive-panel p-6 shadow-2xl">
-        <h2 className="font-playfair text-xl text-archive-gold">
-          Atributo para el tipo
-        </h2>
+        <div className="flex items-center gap-2">
+          <ListPlus className="h-5 w-5 text-archive-gold" aria-hidden />
+          <h2 className="font-playfair text-xl text-archive-gold">
+            Atributo para el tipo
+          </h2>
+        </div>
         <p className="mt-2 font-mono text-xs text-archive-muted">
           Se propagará un valor vacío a todas las entidades existentes de este
           tipo.
         </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
+          {fieldError && (
+            <p className="border border-archive-crimson/40 bg-archive-crimson/10 px-3 py-2 font-mono text-xs text-archive-ink">
+              {fieldError}
+            </p>
+          )}
           <label className="block">
             <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
               Clave (máquina)
             </span>
             <input
               value={key}
-              onChange={(e) => setKey(e.target.value)}
+              onChange={(e) => {
+                setKey(e.target.value);
+                setFieldError(null);
+              }}
               className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
               placeholder="codigo_interno"
             />
@@ -77,7 +99,10 @@ export function AddAttributeModal({ typeId }: Props) {
             </span>
             <input
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                setLabel(e.target.value);
+                setFieldError(null);
+              }}
               className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
               placeholder="Código interno"
             />
@@ -110,8 +135,8 @@ export function AddAttributeModal({ typeId }: Props) {
             </button>
             <button
               type="submit"
-              disabled={saving || !key.trim() || !label.trim()}
-              className="bg-archive-crimson px-4 py-2 font-mono text-sm text-archive-ink hover:opacity-90 disabled:opacity-40"
+              disabled={saving || !canSubmit}
+              className="bg-archive-crimson px-4 py-2 font-mono text-sm text-archive-ink transition hover:opacity-90 disabled:opacity-40"
             >
               {saving ? "Añadiendo…" : "Añadir atributo"}
             </button>

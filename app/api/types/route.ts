@@ -10,6 +10,8 @@ import {
 } from "@/lib/api/http";
 import type { EntityTypeWithAttributes } from "@/types/api";
 import type { Database } from "@/types/database";
+import { entityTypeColorTaken } from "@/lib/api/type-color-conflict";
+import { isValidEntityTypeIcon } from "@/lib/entity-type-icon-names";
 
 type AttributeRow = Database["public"]["Tables"]["attributes"]["Row"];
 type EntityTypeRow = Database["public"]["Tables"]["entity_types"]["Row"];
@@ -18,6 +20,7 @@ type PostTypesBody = {
   label?: string;
   color?: string;
   slug?: string;
+  icon?: string;
 };
 
 export async function GET() {
@@ -77,17 +80,30 @@ export async function POST(request: Request) {
     const label = typeof body.label === "string" ? body.label.trim() : "";
     const color = typeof body.color === "string" ? body.color.trim() : "";
     const slug = typeof body.slug === "string" ? body.slug.trim() : "";
+    const iconRaw =
+      typeof body.icon === "string" && body.icon.trim()
+        ? body.icon.trim()
+        : "Box";
 
     if (!label) return badRequest("label es obligatorio");
     if (!color) return badRequest("color es obligatorio");
     if (!slug) return badRequest("slug es obligatorio");
+    if (!isValidEntityTypeIcon(iconRaw)) {
+      return badRequest("Ícono no permitido");
+    }
 
     const supabase = await createClient();
+
+    const colorTaken = await entityTypeColorTaken(supabase, color);
+    if (colorTaken) {
+      return conflict("Ya existe otro tipo con ese color");
+    }
 
     const insertType: Database["public"]["Tables"]["entity_types"]["Insert"] = {
       name: label,
       slug,
       color,
+      icon: iconRaw,
     };
 
     const { data, error } = await table(supabase, "entity_types")

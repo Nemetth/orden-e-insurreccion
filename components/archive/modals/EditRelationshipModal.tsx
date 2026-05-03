@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link2 } from "lucide-react";
 
 import { archiveApi } from "@/lib/api/archive-client";
@@ -8,61 +8,69 @@ import { useArchiveStore } from "@/store/archive-store";
 import { useToastStore } from "@/store/toast-store";
 
 type Props = {
-  defaultSourceId?: string;
+  relationshipId: string;
 };
 
-export function CreateRelationshipModal({ defaultSourceId }: Props) {
-  const entities = useArchiveStore((s) => s.entities);
+export function EditRelationshipModal({ relationshipId }: Props) {
+  const relationships = useArchiveStore((s) => s.relationships);
   const closeModal = useArchiveStore((s) => s.closeModal);
   const refreshAll = useArchiveStore((s) => s.refreshAll);
   const setError = useArchiveStore((s) => s.setError);
   const pushToast = useToastStore((s) => s.pushToast);
 
-  const options = useMemo(
-    () => [...entities].sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [entities]
+  const rel = useMemo(
+    () => relationships.find((r) => r.id === relationshipId),
+    [relationships, relationshipId]
   );
 
-  const [sourceId, setSourceId] = useState(
-    defaultSourceId ?? options[0]?.id ?? ""
-  );
-  const [targetId, setTargetId] = useState(() => {
-    const first = options.find(
-      (e) => e.id !== (defaultSourceId ?? options[0]?.id)
-    );
-    return first?.id ?? "";
-  });
   const [label, setLabel] = useState("");
+  const [relationKey, setRelationKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
-  const sameEnds = sourceId && targetId && sourceId === targetId;
+  useEffect(() => {
+    if (rel) {
+      setLabel(rel.label ?? "");
+      setRelationKey(rel.relation_key ?? "");
+    }
+  }, [rel]);
+
+  if (!rel) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+        <div className="border border-archive-border bg-archive-panel p-6 font-mono text-sm text-archive-muted">
+          Relación no encontrada.
+        </div>
+      </div>
+    );
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setFieldError(null);
-    if (!sourceId || !targetId || !label.trim()) {
-      setFieldError("Completá origen, destino y etiqueta.");
+    const lb = label.trim();
+    const rk = relationKey.trim();
+    if (!lb) {
+      setFieldError("La etiqueta es obligatoria.");
       return;
     }
-    if (sameEnds) {
-      setFieldError("Origen y destino deben ser entidades distintas.");
+    if (!rk) {
+      setFieldError("La clave semántica es obligatoria.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await archiveApi.createRelationship({
-        source_entity_id: sourceId,
-        target_entity_id: targetId,
-        label: label.trim(),
+      await archiveApi.patchRelationship(relationshipId, {
+        label: lb,
+        relation_key: rk,
       });
       await refreshAll();
-      pushToast("Relación registrada", "success");
+      pushToast("Relación actualizada", "success");
       closeModal();
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : "Error al crear vínculo";
+        err instanceof Error ? err.message : "Error al guardar la relación";
       setFieldError(msg);
       setError(msg);
     } finally {
@@ -70,69 +78,36 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
     }
   }
 
-  const canSubmit =
-    !!sourceId &&
-    !!targetId &&
-    !!label.trim() &&
-    !sameEnds;
+  const canSave = !!label.trim() && !!relationKey.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-      <div className="w-full max-w-md border border-archive-border bg-archive-panel p-6 shadow-2xl">
+      <div
+        className="w-full max-w-md border border-archive-border bg-archive-panel p-6 shadow-2xl"
+        role="dialog"
+        aria-labelledby="edit-rel-title"
+      >
         <div className="flex items-center gap-2">
           <Link2 className="h-5 w-5 text-archive-gold" aria-hidden />
-          <h2 className="font-playfair text-xl text-archive-gold">
-            Nueva relación
+          <h2
+            id="edit-rel-title"
+            className="font-playfair text-xl text-archive-gold"
+          >
+            Editar relación
           </h2>
         </div>
+        <p className="mt-2 font-mono text-[11px] leading-relaxed text-archive-muted">
+          {rel.source_entity.name} → {rel.target_entity.name}
+        </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          {(fieldError || sameEnds) && (
+          {fieldError && (
             <p className="border border-archive-crimson/40 bg-archive-crimson/10 px-3 py-2 font-mono text-xs text-archive-ink">
-              {fieldError ??
-                "Origen y destino deben ser entidades distintas."}
+              {fieldError}
             </p>
           )}
           <label className="block">
             <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
-              Origen
-            </span>
-            <select
-              value={sourceId}
-              onChange={(e) => {
-                setSourceId(e.target.value);
-                setFieldError(null);
-              }}
-              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
-            >
-              {options.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name} ({e.entity_type.name})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
-              Destino
-            </span>
-            <select
-              value={targetId}
-              onChange={(e) => {
-                setTargetId(e.target.value);
-                setFieldError(null);
-              }}
-              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
-            >
-              {options.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name} ({e.entity_type.name})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
-              Etiqueta del vínculo
+              Etiqueta visible
             </span>
             <input
               value={label}
@@ -141,7 +116,20 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
                 setFieldError(null);
               }}
               className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
-              placeholder="aliado de, ubicado en…"
+            />
+          </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Clave semántica (relation_key)
+            </span>
+            <input
+              value={relationKey}
+              onChange={(e) => {
+                setRelationKey(e.target.value);
+                setFieldError(null);
+              }}
+              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+              spellCheck={false}
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">
@@ -154,10 +142,10 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
             </button>
             <button
               type="submit"
-              disabled={saving || !canSubmit}
+              disabled={saving || !canSave}
               className="bg-archive-crimson px-4 py-2 font-mono text-sm text-archive-ink transition hover:opacity-90 disabled:opacity-40"
             >
-              {saving ? "Creando…" : "Registrar"}
+              {saving ? "Guardando…" : "Guardar"}
             </button>
           </div>
         </form>

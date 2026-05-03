@@ -9,6 +9,7 @@ import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
 import { DossierPanel } from "./DossierPanel";
 import { ModalHost } from "./ModalHost";
+import { ToastHost } from "./ToastHost";
 
 /** D3 usa APIs de navegador; cargar solo en cliente evita 500 en SSR. */
 const GraphCanvas = dynamic(
@@ -86,6 +87,7 @@ export function ArchiveApp() {
       </div>
 
       <ModalHost />
+      <ToastHost />
     </div>
   );
 }

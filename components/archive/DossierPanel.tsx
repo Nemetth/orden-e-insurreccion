@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link2, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { archiveApi } from "@/lib/api/archive-client";
 import { useArchiveStore } from "@/store/archive-store";
+import { useToastStore } from "@/store/toast-store";
 import type { EntityWithTypeAndValues } from "@/types/api";
 import type { AttributeValueType } from "@/types/database";
 
@@ -15,11 +17,10 @@ export function DossierPanel() {
   const relationships = useArchiveStore((s) => s.relationships);
   const selectedId = useArchiveStore((s) => s.selectedEntityId);
   const openModal = useArchiveStore((s) => s.openModal);
-  const refreshAll = useArchiveStore((s) => s.refreshAll);
   const upsertEntity = useArchiveStore((s) => s.upsertEntity);
   const selectEntity = useArchiveStore((s) => s.selectEntity);
-  const setMode = useArchiveStore((s) => s.setMode);
   const setError = useArchiveStore((s) => s.setError);
+  const pushToast = useToastStore((s) => s.pushToast);
 
   const entity = useMemo(
     () => entities.find((e) => e.id === selectedId) ?? null,
@@ -38,11 +39,14 @@ export function DossierPanel() {
 
   const saveName = useDebouncedCallback(async (name: string) => {
     if (!entity || !name.trim()) return;
+    const trimmed = name.trim();
+    if (trimmed === entity.name) return;
     try {
       const updated = await archiveApi.patchEntity(entity.id, {
-        name: name.trim(),
+        name: trimmed,
       });
       upsertEntity(updated);
+      pushToast("Nombre sincronizado con el archivo", "success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al guardar nombre");
     }
@@ -118,26 +122,30 @@ export function DossierPanel() {
     [relationships, entity]
   );
 
-  async function handleDelete() {
-    if (!entity || !confirm(`¿Eliminar «${entity.name}» del archivo?`)) return;
-    setError(null);
-    try {
-      await archiveApi.deleteEntity(entity.id);
-      await refreshAll();
-      selectEntity(null);
-      setMode("graph");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo eliminar");
-    }
+  function requestDeleteEntity() {
+    if (!entity) return;
+    openModal({
+      kind: "confirmDelete",
+      target: {
+        kind: "entity",
+        id: entity.id,
+        title: entity.name,
+      },
+    });
   }
 
   if (!selectedId || !entity) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <p className="max-w-md text-center font-mono text-sm text-archive-muted">
-          Seleccioná una entidad en el grafo o en el índice lateral para abrir su
-          dossier clasificado.
-        </p>
+      <div className="flex h-full items-center justify-center p-10">
+        <div className="max-w-md rounded border border-dashed border-archive-border/80 px-8 py-10 text-center">
+          <p className="font-playfair text-lg text-archive-ink">
+            Sin entidad seleccionada
+          </p>
+          <p className="mt-3 font-mono text-sm leading-relaxed text-archive-muted">
+            Elegí un nodo en el mapa táctico o en el índice lateral para ver su
+            dossier clasificado, relaciones y atributos dinámicos.
+          </p>
+        </div>
       </div>
     );
   }
@@ -152,16 +160,30 @@ export function DossierPanel() {
               setNameEdit(e.target.value);
               saveName(e.target.value);
             }}
-            className="w-full bg-transparent font-playfair text-3xl font-semibold tracking-tight text-archive-gold outline-none placeholder:text-archive-muted focus:ring-0"
+            className="w-full bg-transparent font-playfair text-3xl font-semibold tracking-tight text-archive-gold outline-none placeholder:text-archive-muted transition hover:text-archive-gold focus:ring-0"
+            aria-label="Nombre de la entidad"
           />
-          <p className="mt-2 font-mono text-xs uppercase tracking-[0.15em] text-archive-muted">
-            {entity.entity_type.name} · ref. {entity.id.slice(0, 8)}…
+          <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-archive-muted">
+            <span className="text-archive-ink">{entity.entity_type.name}</span>
+            <span className="mx-2 text-archive-border">·</span>
+            ref. {entity.id.slice(0, 8)}…
           </p>
         </header>
 
         <section>
-          <h3 className="font-playfair text-lg text-archive-gold">Atributos</h3>
-          <div className="mt-4 space-y-5">
+          <h3 className="font-playfair text-xl font-semibold tracking-tight text-archive-gold">
+            Atributos
+          </h3>
+          <p className="mt-1 font-mono text-[11px] text-archive-muted">
+            Campos declarados para el tipo; los valores se guardan al editar.
+          </p>
+          <div className="mt-5 space-y-5">
+            {entity.values.length === 0 && (
+              <div className="rounded border border-archive-border/60 bg-archive-void/30 px-4 py-6 text-center font-mono text-sm text-archive-muted">
+                Este tipo aún no tiene atributos. Añadí campos desde el botón de
+                abajo para estructurar el dossier.
+              </div>
+            )}
             {entity.values.map(({ attribute, ...row }) => (
               <div
                 key={row.id}
@@ -193,62 +215,142 @@ export function DossierPanel() {
             onClick={() =>
               openModal({ kind: "addAttribute", typeId: entity.entity_type_id })
             }
-            className="mt-6 border border-dashed border-archive-gold/50 px-4 py-2 font-mono text-xs uppercase tracking-wider text-archive-gold hover:bg-archive-gold/10"
+            className="mt-6 inline-flex items-center gap-2 border border-dashed border-archive-gold/50 px-4 py-2 font-mono text-xs uppercase tracking-wider text-archive-gold transition hover:bg-archive-gold/10"
           >
-            + Atributo al tipo (propaga a todas las entidades del tipo)
+            <ListPlus className="h-4 w-4" aria-hidden />
+            Atributo al tipo
           </button>
         </section>
 
         <section className="grid gap-8 md:grid-cols-2">
           <div>
-            <h3 className="font-playfair text-lg text-archive-gold">
+            <h3 className="font-playfair text-xl font-semibold tracking-tight text-archive-gold">
               Relaciones · salida
             </h3>
-            <ul className="mt-3 space-y-2 font-mono text-sm">
+            <ul className="mt-4 space-y-2 font-mono text-sm">
               {outgoing.map((r) => (
-                <li key={r.id}>
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center gap-2 rounded border border-transparent px-1 py-1 transition hover:border-archive-border/80 hover:bg-archive-void/40"
+                >
+                  <Link2
+                    className="h-3.5 w-3.5 shrink-0 text-archive-muted"
+                    aria-hidden
+                  />
                   <button
                     type="button"
                     onClick={() => {
                       selectEntity(r.target_entity_id);
                     }}
-                    className="text-left text-archive-ink underline decoration-archive-border decoration-dotted underline-offset-4 hover:decoration-archive-gold"
+                    className="min-w-0 flex-1 truncate text-left text-archive-ink underline decoration-archive-border decoration-dotted underline-offset-4 transition hover:decoration-archive-gold"
                   >
                     → {r.target_entity.name}
                   </button>
-                  <span className="ml-2 text-archive-muted">
+                  <span className="text-archive-muted">
                     ({r.label ?? r.relation_key})
                   </span>
+                  <button
+                    type="button"
+                    title="Editar relación"
+                    onClick={() =>
+                      openModal({
+                        kind: "editRelationship",
+                        relationshipId: r.id,
+                      })
+                    }
+                    className="rounded p-1 text-archive-muted transition hover:text-archive-gold"
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    title="Eliminar relación"
+                    onClick={() =>
+                      openModal({
+                        kind: "confirmDelete",
+                        target: {
+                          kind: "relationship",
+                          id: r.id,
+                          title: r.label ?? r.relation_key,
+                        },
+                      })
+                    }
+                    className="rounded p-1 text-archive-muted transition hover:text-archive-crimson"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
                 </li>
               ))}
               {outgoing.length === 0 && (
-                <li className="text-archive-muted">Ninguna registrada.</li>
+                <li className="rounded border border-archive-border/50 px-3 py-4 font-mono text-xs leading-relaxed text-archive-muted">
+                  No hay aristas de salida. Registrá un vínculo desde el pie de
+                  página o el índice global.
+                </li>
               )}
             </ul>
           </div>
           <div>
-            <h3 className="font-playfair text-lg text-archive-gold">
+            <h3 className="font-playfair text-xl font-semibold tracking-tight text-archive-gold">
               Relaciones · entrada
             </h3>
-            <ul className="mt-3 space-y-2 font-mono text-sm">
+            <ul className="mt-4 space-y-2 font-mono text-sm">
               {incoming.map((r) => (
-                <li key={r.id}>
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center gap-2 rounded border border-transparent px-1 py-1 transition hover:border-archive-border/80 hover:bg-archive-void/40"
+                >
+                  <Link2
+                    className="h-3.5 w-3.5 shrink-0 text-archive-muted"
+                    aria-hidden
+                  />
                   <button
                     type="button"
                     onClick={() => {
                       selectEntity(r.source_entity_id);
                     }}
-                    className="text-left text-archive-ink underline decoration-archive-border decoration-dotted underline-offset-4 hover:decoration-archive-gold"
+                    className="min-w-0 flex-1 truncate text-left text-archive-ink underline decoration-archive-border decoration-dotted underline-offset-4 transition hover:decoration-archive-gold"
                   >
                     ← {r.source_entity.name}
                   </button>
-                  <span className="ml-2 text-archive-muted">
+                  <span className="text-archive-muted">
                     ({r.label ?? r.relation_key})
                   </span>
+                  <button
+                    type="button"
+                    title="Editar relación"
+                    onClick={() =>
+                      openModal({
+                        kind: "editRelationship",
+                        relationshipId: r.id,
+                      })
+                    }
+                    className="rounded p-1 text-archive-muted transition hover:text-archive-gold"
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    title="Eliminar relación"
+                    onClick={() =>
+                      openModal({
+                        kind: "confirmDelete",
+                        target: {
+                          kind: "relationship",
+                          id: r.id,
+                          title: r.label ?? r.relation_key,
+                        },
+                      })
+                    }
+                    className="rounded p-1 text-archive-muted transition hover:text-archive-crimson"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
                 </li>
               ))}
               {incoming.length === 0 && (
-                <li className="text-archive-muted">Ninguna registrada.</li>
+                <li className="rounded border border-archive-border/50 px-3 py-4 font-mono text-xs leading-relaxed text-archive-muted">
+                  Ningún otro nodo apunta aquí todavía.
+                </li>
               )}
             </ul>
           </div>
@@ -263,15 +365,17 @@ export function DossierPanel() {
                 defaultSourceId: entity.id,
               })
             }
-            className="bg-archive-crimson px-5 py-2 font-mono text-sm text-archive-ink"
+            className="inline-flex items-center gap-2 bg-archive-crimson px-5 py-2.5 font-mono text-sm text-archive-ink transition hover:opacity-90"
           >
+            <Plus className="h-4 w-4" aria-hidden />
             Nueva relación desde esta entidad
           </button>
           <button
             type="button"
-            onClick={handleDelete}
-            className="border border-archive-crimson px-5 py-2 font-mono text-sm text-archive-crimson hover:bg-archive-crimson/15"
+            onClick={requestDeleteEntity}
+            className="inline-flex items-center gap-2 border border-archive-crimson px-5 py-2.5 font-mono text-sm text-archive-crimson transition hover:bg-archive-crimson/15"
           >
+            <Trash2 className="h-4 w-4" aria-hidden />
             Eliminar entidad
           </button>
         </footer>
@@ -326,7 +430,7 @@ function AttributeEditor({
           onCommit(v);
         }}
         rows={4}
-        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-sm text-archive-ink outline-none transition hover:border-archive-muted focus:border-archive-crimson"
       />
     );
   }
@@ -342,7 +446,7 @@ function AttributeEditor({
         }}
         rows={6}
         spellCheck={false}
-        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-xs text-archive-ink outline-none focus:border-archive-crimson"
+        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-xs text-archive-ink outline-none transition hover:border-archive-muted focus:border-archive-crimson"
       />
     );
   }
@@ -357,7 +461,7 @@ function AttributeEditor({
           setLocal(v);
           onCommit(v);
         }}
-        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+        className="mt-2 w-full border border-archive-border bg-archive-panel px-3 py-2 font-mono text-sm text-archive-ink outline-none transition hover:border-archive-muted focus:border-archive-crimson"
       />
     );
   }

@@ -22,12 +22,38 @@ export const archiveApi = {
   getTypes: () =>
     fetch("/api/types").then((r) => parseJson<EntityTypeWithAttributes[]>(r)),
 
-  createType: (body: { label: string; color: string; slug: string }) =>
+  createType: (body: {
+    label: string;
+    color: string;
+    slug: string;
+    icon?: string;
+  }) =>
     fetch("/api/types", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then((r) => parseJson<EntityTypeWithAttributes>(r)),
+
+  patchType: (
+    id: string,
+    body: {
+      name?: string;
+      color?: string;
+      slug?: string;
+      icon?: string;
+      description?: string | null;
+    }
+  ) =>
+    fetch(`/api/types/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => parseJson<EntityTypeWithAttributes>(r)),
+
+  deleteType: (id: string) =>
+    fetch(`/api/types/${id}`, { method: "DELETE" }).then((r) =>
+      parseJson<{ id: string }>(r)
+    ),
 
   addAttribute: (
     typeId: string,
@@ -101,6 +127,16 @@ export const archiveApi = {
   }) =>
     fetch("/api/relationships", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => parseJson<RelationshipWithEntities>(r)),
+
+  patchRelationship: (
+    id: string,
+    body: { label?: string; relation_key?: string }
+  ) =>
+    fetch(`/api/relationships/${id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then((r) => parseJson<RelationshipWithEntities>(r)),

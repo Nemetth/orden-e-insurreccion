@@ -24,6 +24,7 @@ export interface Database {
           slug: string;
           name: string;
           color: string;
+          icon: string;
           description: string | null;
           created_at: string;
           updated_at: string;
@@ -33,6 +34,7 @@ export interface Database {
           slug: string;
           name: string;
           color?: string;
+          icon?: string;
           description?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -42,6 +44,7 @@ export interface Database {
           slug?: string;
           name?: string;
           color?: string;
+          icon?: string;
           description?: string | null;
           created_at?: string;
           updated_at?: string;

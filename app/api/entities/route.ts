@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { table } from "@/lib/supabase/tables";
 import { emptyColumnsForType } from "@/lib/api/values";
+import { entityNameTaken } from "@/lib/api/entity-name";
 import {
   badRequest,
+  conflict,
   internalError,
   jsonCreated,
   jsonOk,
@@ -159,6 +161,11 @@ export async function POST(request: Request) {
       return internalError(typeErr.message, { code: typeErr.code });
     }
     if (!typeExists) return notFound("Tipo de entidad no encontrado");
+
+    const dupName = await entityNameTaken(supabase, entityTypeId, name);
+    if (dupName) {
+      return conflict("Ya existe una entidad con ese nombre en este tipo");
+    }
 
     const { data: attrs, error: attrErr } = await table(supabase, "attributes")
       .select("*")

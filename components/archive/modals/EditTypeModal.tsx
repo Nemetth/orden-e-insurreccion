@@ -1,40 +1,62 @@
 "use client";
 
-import { useState } from "react";
-import { Tag } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
 
-import { slugFromLabel } from "@/lib/slugify";
 import { archiveApi } from "@/lib/api/archive-client";
 import { colorsConflict } from "@/lib/api/color-normalize";
 import type { EntityTypeIconName } from "@/lib/entity-type-icon-names";
+import { isValidEntityTypeIcon } from "@/lib/entity-type-icon-names";
 import { useArchiveStore } from "@/store/archive-store";
 import { useToastStore } from "@/store/toast-store";
 
 import { TYPE_COLOR_PALETTE } from "../constants";
 import { IconPicker } from "../IconPicker";
 
-export function CreateTypeModal() {
+type Props = {
+  typeId: string;
+};
+
+export function EditTypeModal({ typeId }: Props) {
   const types = useArchiveStore((s) => s.types);
   const closeModal = useArchiveStore((s) => s.closeModal);
   const refreshAll = useArchiveStore((s) => s.refreshAll);
   const setError = useArchiveStore((s) => s.setError);
   const pushToast = useToastStore((s) => s.pushToast);
 
-  const [label, setLabel] = useState("");
-  const [color, setColor] = useState<string>(TYPE_COLOR_PALETTE[0]);
-  const [icon, setIcon] = useState<EntityTypeIconName>("Box");
+  const t = useMemo(() => types.find((x) => x.id === typeId), [types, typeId]);
+
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [color, setColor] = useState("#64748b");
+  const [icon, setIcon] = useState<EntityTypeIconName | string>("Box");
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!t) return;
+    setName(t.name);
+    setSlug(t.slug);
+    setColor(t.color);
+    const ic = (t as { icon?: string }).icon;
+    setIcon(ic && isValidEntityTypeIcon(ic) ? ic : "Box");
+  }, [t]);
+
   function validate(): boolean {
     setFieldError(null);
-    if (!label.trim()) {
-      setFieldError("La etiqueta es obligatoria.");
+    if (!name.trim()) {
+      setFieldError("El nombre es obligatorio.");
       return false;
     }
-    const dupColor = types.some((x) => colorsConflict(x.color, color));
+    if (!slug.trim()) {
+      setFieldError("El slug es obligatorio.");
+      return false;
+    }
+    const dupColor = types.some(
+      (x) => x.id !== typeId && colorsConflict(x.color, color)
+    );
     if (dupColor) {
-      setFieldError("Ya existe un tipo con ese color. Elegí otro tono.");
+      setFieldError("Otro tipo ya usa ese color.");
       return false;
     }
     return true;
@@ -46,18 +68,18 @@ export function CreateTypeModal() {
     setSaving(true);
     setError(null);
     try {
-      await archiveApi.createType({
-        label: label.trim(),
+      await archiveApi.patchType(typeId, {
+        name: name.trim(),
+        slug: slug.trim(),
         color,
-        slug: slugFromLabel(label),
-        icon,
+        icon: typeof icon === "string" ? icon : "Box",
       });
       await refreshAll();
-      pushToast("Tipo creado", "success");
+      pushToast("Tipo actualizado", "success");
       closeModal();
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : "Error al crear tipo";
+        err instanceof Error ? err.message : "Error al guardar el tipo";
       setFieldError(msg);
       setError(msg);
     } finally {
@@ -65,46 +87,71 @@ export function CreateTypeModal() {
     }
   }
 
-  const dupColor = types.some((x) => colorsConflict(x.color, color));
-  const canSubmit =
-    !!label.trim() && !dupColor && !!color;
+  const iconName =
+    typeof icon === "string" && isValidEntityTypeIcon(icon) ? icon : "Box";
+
+  const canSave =
+    !!name.trim() &&
+    !!slug.trim() &&
+    !!color &&
+    isValidEntityTypeIcon(iconName);
+
+  if (!t) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+        <div className="border border-archive-border bg-archive-panel p-6 font-mono text-sm text-archive-muted">
+          Tipo no encontrado.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
       <div
         className="w-full max-w-lg border border-archive-border bg-archive-panel p-6 shadow-2xl"
         role="dialog"
-        aria-labelledby="modal-type-title"
+        aria-labelledby="edit-type-title"
       >
         <div className="flex items-center gap-2">
-          <Tag className="h-5 w-5 text-archive-gold" aria-hidden />
+          <Pencil className="h-5 w-5 text-archive-gold" aria-hidden />
           <h2
-            id="modal-type-title"
+            id="edit-type-title"
             className="font-playfair text-xl text-archive-gold"
           >
-            Nuevo tipo de entidad
+            Editar tipo
           </h2>
         </div>
         <form onSubmit={submit} className="mt-6 space-y-4">
-          {(fieldError || dupColor) && (
+          {fieldError && (
             <p className="border border-archive-crimson/40 bg-archive-crimson/10 px-3 py-2 font-mono text-xs text-archive-ink">
-              {fieldError ??
-                "Ya existe un tipo con ese color. Elegí otro tono."}
+              {fieldError}
             </p>
           )}
           <label className="block">
             <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
-              Etiqueta
+              Nombre visible
             </span>
             <input
-              value={label}
+              value={name}
               onChange={(e) => {
-                setLabel(e.target.value);
+                setName(e.target.value);
                 setFieldError(null);
               }}
               className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
-              placeholder="Personaje, Lugar…"
-              autoFocus
+            />
+          </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Slug (URL / máquina)
+            </span>
+            <input
+              value={slug}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                setFieldError(null);
+              }}
+              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
             />
           </label>
           <div>
@@ -136,7 +183,14 @@ export function CreateTypeModal() {
               Ícono
             </span>
             <div className="mt-2 max-h-36 overflow-y-auto pr-1">
-              <IconPicker value={icon} onChange={setIcon} disabled={saving} />
+              <IconPicker
+                value={icon}
+                onChange={(n) => {
+                  setIcon(n);
+                  setFieldError(null);
+                }}
+                disabled={saving}
+              />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -149,10 +203,10 @@ export function CreateTypeModal() {
             </button>
             <button
               type="submit"
-              disabled={saving || !canSubmit}
+              disabled={saving || !canSave}
               className="bg-archive-crimson px-4 py-2 font-mono text-sm text-archive-ink transition hover:opacity-90 disabled:opacity-40"
             >
-              {saving ? "Guardando…" : "Crear tipo"}
+              {saving ? "Guardando…" : "Guardar cambios"}
             </button>
           </div>
         </form>
