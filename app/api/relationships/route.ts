@@ -20,9 +20,24 @@ type PostRelationshipBody = {
   target_entity_id?: string;
   label?: string;
   relation_key?: string;
+  tension_level?: number;
+  tension_notes?: string | null;
+  year_start?: number | null;
+  year_end?: number | null;
 };
 
-export async function GET() {
+function relationshipActiveInYear(
+  r: RelationshipRow,
+  y: number
+): boolean {
+  const ys = r.year_start;
+  const ye = r.year_end;
+  const startOk = ys === null || ys <= y;
+  const endOk = ye === null || ye >= y;
+  return startOk && endOk;
+}
+
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
 
@@ -34,7 +49,17 @@ export async function GET() {
       return internalError(relErr.message, { code: relErr.code });
     }
 
-    const list = (rels ?? []) as RelationshipRow[];
+    let list = (rels ?? []) as RelationshipRow[];
+
+    const url = new URL(request.url);
+    const yearParam = url.searchParams.get("year");
+    if (yearParam !== null && yearParam !== "") {
+      const y = Number.parseInt(yearParam, 10);
+      if (!Number.isFinite(y)) {
+        return badRequest("year debe ser un entero");
+      }
+      list = list.filter((r) => relationshipActiveInYear(r, y));
+    }
     if (list.length === 0) {
       return jsonOk<RelationshipWithEntities[]>([]);
     }
@@ -153,6 +178,41 @@ export async function POST(request: Request) {
       relation_key: relationKeyRaw,
       label,
     };
+
+    if (body.tension_level !== undefined && body.tension_level !== null) {
+      const tl = Number(body.tension_level);
+      if (!Number.isFinite(tl) || tl < 0 || tl > 100) {
+        return badRequest("tension_level debe estar entre 0 y 100");
+      }
+      insertRel.tension_level = Math.round(tl);
+    }
+
+    if (body.tension_notes !== undefined) {
+      insertRel.tension_notes =
+        body.tension_notes === null || body.tension_notes === ""
+          ? null
+          : String(body.tension_notes);
+    }
+
+    if (body.year_start !== undefined) {
+      if (body.year_start === null) {
+        insertRel.year_start = null;
+      } else {
+        const ys = Number(body.year_start);
+        if (!Number.isFinite(ys)) return badRequest("year_start inválido");
+        insertRel.year_start = Math.trunc(ys);
+      }
+    }
+
+    if (body.year_end !== undefined) {
+      if (body.year_end === null) {
+        insertRel.year_end = null;
+      } else {
+        const ye = Number(body.year_end);
+        if (!Number.isFinite(ye)) return badRequest("year_end inválido");
+        insertRel.year_end = Math.trunc(ye);
+      }
+    }
 
     const { data: row, error: insErr } = await table(supabase, "relationships")
       .insert(insertRel as never)

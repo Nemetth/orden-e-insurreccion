@@ -37,9 +37,12 @@ export function ConfirmDeleteModal({ target }: Props) {
           setMode("graph");
         }
         pushToast("Entidad eliminada", "success");
-      } else {
+      } else if (target.kind === "relationship") {
         await archiveApi.deleteRelationship(target.id);
         pushToast("Relación eliminada", "success");
+      } else {
+        await archiveApi.deleteAttribute(target.typeId, target.id);
+        pushToast("Atributo eliminado del tipo", "success");
       }
       await refreshAll();
       closeModal();
@@ -59,7 +62,14 @@ export function ConfirmDeleteModal({ target }: Props) {
       ? "Eliminar tipo de entidad"
       : target.kind === "entity"
         ? "Eliminar entidad"
-        : "Eliminar relación";
+        : target.kind === "relationship"
+          ? "Eliminar relación"
+          : "Eliminar atributo del tipo";
+
+  const detail =
+    target.kind === "attribute"
+      ? "Se borrarán también los valores de este campo en todas las entidades de ese tipo (cascada)."
+      : "Esta acción no se puede deshacer.";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
@@ -74,8 +84,8 @@ export function ConfirmDeleteModal({ target }: Props) {
             <h2 className="font-playfair text-xl text-archive-gold">{title}</h2>
             <p className="mt-3 font-mono text-sm leading-relaxed text-archive-muted">
               ¿Seguro que querés borrar{" "}
-              <span className="text-archive-ink">«{target.title}»</span>? Esta
-              acción no se puede deshacer.
+              <span className="text-archive-ink">«{target.title}»</span>?{" "}
+              {detail}
             </p>
           </div>
         </div>

@@ -18,6 +18,10 @@ type EntityTypeRow = Database["public"]["Tables"]["entity_types"]["Row"];
 type PatchRelationshipBody = {
   label?: string;
   relation_key?: string;
+  tension_level?: number;
+  tension_notes?: string | null;
+  year_start?: number | null;
+  year_end?: number | null;
 };
 
 async function loadRelationshipPayload(
@@ -110,6 +114,41 @@ export async function PATCH(
       update.relation_key = rk;
     } else if (newLabel !== undefined) {
       update.relation_key = slugifyRelationKey(newLabel);
+    }
+
+    if (body.tension_level !== undefined && body.tension_level !== null) {
+      const tl = Number(body.tension_level);
+      if (!Number.isFinite(tl) || tl < 0 || tl > 100) {
+        return badRequest("tension_level debe estar entre 0 y 100");
+      }
+      update.tension_level = Math.round(tl);
+    }
+
+    if (body.tension_notes !== undefined) {
+      update.tension_notes =
+        body.tension_notes === null || body.tension_notes === ""
+          ? null
+          : String(body.tension_notes);
+    }
+
+    if (body.year_start !== undefined) {
+      if (body.year_start === null) {
+        update.year_start = null;
+      } else {
+        const ys = Number(body.year_start);
+        if (!Number.isFinite(ys)) return badRequest("year_start inválido");
+        update.year_start = Math.trunc(ys);
+      }
+    }
+
+    if (body.year_end !== undefined) {
+      if (body.year_end === null) {
+        update.year_end = null;
+      } else {
+        const ye = Number(body.year_end);
+        if (!Number.isFinite(ye)) return badRequest("year_end inválido");
+        update.year_end = Math.trunc(ye);
+      }
     }
 
     if (Object.keys(update).length === 0) {

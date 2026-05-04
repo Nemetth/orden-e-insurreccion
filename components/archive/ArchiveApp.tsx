@@ -7,18 +7,31 @@ import { useArchiveStore } from "@/store/archive-store";
 
 import { AppHeader } from "./AppHeader";
 import { AppSidebar } from "./AppSidebar";
+import { ChroniclePanel } from "./ChroniclePanel";
 import { DossierPanel } from "./DossierPanel";
 import { ModalHost } from "./ModalHost";
 import { ToastHost } from "./ToastHost";
 
 /** D3 usa APIs de navegador; cargar solo en cliente evita 500 en SSR. */
-const GraphCanvas = dynamic(
-  () => import("./GraphCanvas").then((m) => m.GraphCanvas),
+const GraphMapView = dynamic(
+  () => import("./GraphMapView").then((m) => m.GraphMapView),
   {
     ssr: false,
     loading: () => (
       <div className="flex h-full min-h-[320px] items-center justify-center font-mono text-sm text-archive-muted">
         Cargando mapa táctico…
+      </div>
+    ),
+  }
+);
+
+const TerritoryMapPanel = dynamic(
+  () => import("./TerritoryMapPanel").then((m) => m.TerritoryMapPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full min-h-[320px] items-center justify-center font-mono text-sm text-archive-muted">
+        Cargando territorio…
       </div>
     ),
   }
@@ -74,12 +87,16 @@ export function ArchiveApp() {
               Desclasificando índice…
             </div>
           ) : mode === "graph" ? (
-            <GraphCanvas
+            <GraphMapView
               entities={entities}
               relationships={relationships}
               selectedEntityId={selectedEntityId}
               onSelectEntity={onSelectEntity}
             />
+          ) : mode === "territory" ? (
+            <TerritoryMapPanel />
+          ) : mode === "chronicle" ? (
+            <ChroniclePanel />
           ) : (
             <DossierPanel />
           )}

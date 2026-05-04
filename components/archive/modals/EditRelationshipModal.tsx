@@ -25,6 +25,10 @@ export function EditRelationshipModal({ relationshipId }: Props) {
 
   const [label, setLabel] = useState("");
   const [relationKey, setRelationKey] = useState("");
+  const [tensionLevel, setTensionLevel] = useState(50);
+  const [tensionNotes, setTensionNotes] = useState("");
+  const [yearStart, setYearStart] = useState("");
+  const [yearEnd, setYearEnd] = useState("");
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -32,6 +36,12 @@ export function EditRelationshipModal({ relationshipId }: Props) {
     if (rel) {
       setLabel(rel.label ?? "");
       setRelationKey(rel.relation_key ?? "");
+      setTensionLevel(rel.tension_level ?? 50);
+      setTensionNotes(rel.tension_notes ?? "");
+      setYearStart(
+        rel.year_start != null ? String(rel.year_start) : ""
+      );
+      setYearEnd(rel.year_end != null ? String(rel.year_end) : "");
     }
   }, [rel]);
 
@@ -61,9 +71,28 @@ export function EditRelationshipModal({ relationshipId }: Props) {
     setSaving(true);
     setError(null);
     try {
+      const ys = yearStart.trim();
+      const ye = yearEnd.trim();
+      const ysv = ys === "" ? null : Number.parseInt(ys, 10);
+      const yev = ye === "" ? null : Number.parseInt(ye, 10);
+      if (ys !== "" && !Number.isFinite(ysv)) {
+        setFieldError("Año de inicio inválido.");
+        setSaving(false);
+        return;
+      }
+      if (ye !== "" && !Number.isFinite(yev)) {
+        setFieldError("Año de fin inválido.");
+        setSaving(false);
+        return;
+      }
+
       await archiveApi.patchRelationship(relationshipId, {
         label: lb,
         relation_key: rk,
+        tension_level: tensionLevel,
+        tension_notes: tensionNotes.trim() || null,
+        year_start: ysv,
+        year_end: yev,
       });
       await refreshAll();
       pushToast("Relación actualizada", "success");
@@ -132,6 +161,66 @@ export function EditRelationshipModal({ relationshipId }: Props) {
               spellCheck={false}
             />
           </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Tensión ({tensionLevel})
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={tensionLevel}
+              onChange={(e) => {
+                setTensionLevel(Number(e.target.value));
+                setFieldError(null);
+              }}
+              className="mt-2 w-full accent-archive-gold"
+            />
+          </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Notas de tensión
+            </span>
+            <textarea
+              value={tensionNotes}
+              onChange={(e) => {
+                setTensionNotes(e.target.value);
+                setFieldError(null);
+              }}
+              rows={2}
+              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-xs text-archive-ink outline-none focus:border-archive-crimson"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+                Año inicio (opc.)
+              </span>
+              <input
+                type="number"
+                value={yearStart}
+                onChange={(e) => {
+                  setYearStart(e.target.value);
+                  setFieldError(null);
+                }}
+                className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+              />
+            </label>
+            <label className="block">
+              <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+                Año fin (opc.)
+              </span>
+              <input
+                type="number"
+                value={yearEnd}
+                onChange={(e) => {
+                  setYearEnd(e.target.value);
+                  setFieldError(null);
+                }}
+                className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+              />
+            </label>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"

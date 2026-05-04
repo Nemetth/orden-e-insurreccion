@@ -15,6 +15,14 @@ export type AttributeValueType =
   | "json"
   | "entity_ref";
 
+/** Atributos históricos por tipo (subconjunto de columnas EAV). */
+export type HistoryAttributeValueType =
+  | "text"
+  | "long_text"
+  | "number"
+  | "boolean"
+  | "date";
+
 export interface Database {
   public: {
     Tables: {
@@ -167,6 +175,10 @@ export interface Database {
           label: string | null;
           meta: Json;
           created_at: string;
+          tension_level: number;
+          tension_notes: string | null;
+          year_start: number | null;
+          year_end: number | null;
         };
         Insert: {
           id?: string;
@@ -176,6 +188,10 @@ export interface Database {
           label?: string | null;
           meta?: Json;
           created_at?: string;
+          tension_level?: number;
+          tension_notes?: string | null;
+          year_start?: number | null;
+          year_end?: number | null;
         };
         Update: {
           id?: string;
@@ -184,6 +200,218 @@ export interface Database {
           relation_key?: string;
           label?: string | null;
           meta?: Json;
+          created_at?: string;
+          tension_level?: number;
+          tension_notes?: string | null;
+          year_start?: number | null;
+          year_end?: number | null;
+        };
+      };
+      entity_documents: {
+        Row: {
+          id: string;
+          entity_id: string;
+          title: string;
+          content: string | null;
+          classification: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_id: string;
+          title: string;
+          content?: string | null;
+          classification?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_id?: string;
+          title?: string;
+          content?: string | null;
+          classification?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      entity_rumors: {
+        Row: {
+          id: string;
+          entity_id: string;
+          source_entity_id: string | null;
+          content: string;
+          year: number | null;
+          credibility: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_id: string;
+          source_entity_id?: string | null;
+          content: string;
+          year?: number | null;
+          credibility?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_id?: string;
+          source_entity_id?: string | null;
+          content?: string;
+          year?: number | null;
+          credibility?: string;
+          created_at?: string;
+        };
+      };
+      entity_map_positions: {
+        Row: {
+          id: string;
+          entity_id: string;
+          lat: string;
+          lng: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_id: string;
+          lat: number | string;
+          lng: number | string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_id?: string;
+          lat?: number | string;
+          lng?: number | string;
+          created_at?: string;
+        };
+      };
+      map_locations: {
+        Row: {
+          id: string;
+          name: string;
+          lat: string;
+          lng: string;
+          is_preset: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          lat: number | string;
+          lng: number | string;
+          is_preset?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          lat?: number | string;
+          lng?: number | string;
+          is_preset?: boolean;
+          created_at?: string;
+        };
+      };
+      map_regions: {
+        Row: {
+          id: string;
+          name: string;
+          color: string;
+          geojson: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          color?: string;
+          geojson: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          color?: string;
+          geojson?: Json;
+          created_at?: string;
+        };
+      };
+      entity_history_years: {
+        Row: {
+          id: string;
+          entity_id: string;
+          year: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_id: string;
+          year: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_id?: string;
+          year?: number;
+          created_at?: string;
+        };
+      };
+      history_attribute_types: {
+        Row: {
+          id: string;
+          entity_type_id: string;
+          key: string;
+          label: string;
+          value_type: HistoryAttributeValueType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_type_id: string;
+          key: string;
+          label: string;
+          value_type: HistoryAttributeValueType;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_type_id?: string;
+          key?: string;
+          label?: string;
+          value_type?: HistoryAttributeValueType;
+          created_at?: string;
+        };
+      };
+      entity_history_values: {
+        Row: {
+          id: string;
+          history_year_id: string;
+          history_attribute_type_id: string;
+          value_text: string | null;
+          value_number: string | null;
+          value_boolean: boolean | null;
+          value_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          history_year_id: string;
+          history_attribute_type_id: string;
+          value_text?: string | null;
+          value_number?: string | null;
+          value_boolean?: boolean | null;
+          value_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          history_year_id?: string;
+          history_attribute_type_id?: string;
+          value_text?: string | null;
+          value_number?: string | null;
+          value_boolean?: boolean | null;
+          value_date?: string | null;
           created_at?: string;
         };
       };

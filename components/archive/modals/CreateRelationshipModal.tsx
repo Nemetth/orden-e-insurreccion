@@ -33,6 +33,10 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
     return first?.id ?? "";
   });
   const [label, setLabel] = useState("");
+  const [tensionLevel, setTensionLevel] = useState(50);
+  const [tensionNotes, setTensionNotes] = useState("");
+  const [yearStart, setYearStart] = useState("");
+  const [yearEnd, setYearEnd] = useState("");
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -52,10 +56,29 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
     setSaving(true);
     setError(null);
     try {
+      const ys = yearStart.trim();
+      const ye = yearEnd.trim();
+      const ysv = ys === "" ? undefined : Number.parseInt(ys, 10);
+      const yev = ye === "" ? undefined : Number.parseInt(ye, 10);
+      if (ys !== "" && !Number.isFinite(ysv)) {
+        setFieldError("Año de inicio inválido.");
+        setSaving(false);
+        return;
+      }
+      if (ye !== "" && !Number.isFinite(yev)) {
+        setFieldError("Año de fin inválido.");
+        setSaving(false);
+        return;
+      }
+
       await archiveApi.createRelationship({
         source_entity_id: sourceId,
         target_entity_id: targetId,
         label: label.trim(),
+        tension_level: tensionLevel,
+        tension_notes: tensionNotes.trim() || null,
+        year_start: ys === "" ? null : ysv,
+        year_end: ye === "" ? null : yev,
       });
       await refreshAll();
       pushToast("Relación registrada", "success");
@@ -144,6 +167,54 @@ export function CreateRelationshipModal({ defaultSourceId }: Props) {
               placeholder="aliado de, ubicado en…"
             />
           </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Tensión inicial ({tensionLevel})
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={tensionLevel}
+              onChange={(e) => setTensionLevel(Number(e.target.value))}
+              className="mt-2 w-full accent-archive-gold"
+            />
+          </label>
+          <label className="block">
+            <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+              Notas de tensión (opc.)
+            </span>
+            <textarea
+              value={tensionNotes}
+              onChange={(e) => setTensionNotes(e.target.value)}
+              rows={2}
+              className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-xs text-archive-ink outline-none focus:border-archive-crimson"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+                Año inicio (opc.)
+              </span>
+              <input
+                type="number"
+                value={yearStart}
+                onChange={(e) => setYearStart(e.target.value)}
+                className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+              />
+            </label>
+            <label className="block">
+              <span className="font-mono text-xs uppercase tracking-wider text-archive-muted">
+                Año fin (opc.)
+              </span>
+              <input
+                type="number"
+                value={yearEnd}
+                onChange={(e) => setYearEnd(e.target.value)}
+                className="mt-1 w-full border border-archive-border bg-archive-void px-3 py-2 font-mono text-sm text-archive-ink outline-none focus:border-archive-crimson"
+              />
+            </label>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"

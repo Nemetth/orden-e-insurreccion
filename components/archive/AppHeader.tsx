@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { Map, ScrollText } from "lucide-react";
+import { Globe2, History, Map, ScrollText } from "lucide-react";
 
 import { useArchiveStore } from "@/store/archive-store";
 import type { ViewMode } from "@/store/archive-store";
@@ -52,6 +52,12 @@ export function AppHeader() {
         </Tab>
         <Tab value="dossier" icon={ScrollText}>
           Dossier
+        </Tab>
+        <Tab value="chronicle" icon={History}>
+          Crónica
+        </Tab>
+        <Tab value="territory" icon={Globe2}>
+          Territorio
         </Tab>
       </div>
     </header>

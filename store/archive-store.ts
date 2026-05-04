@@ -7,12 +7,13 @@ import type {
   RelationshipWithEntities,
 } from "@/types/api";
 
-export type ViewMode = "graph" | "dossier";
+export type ViewMode = "graph" | "dossier" | "chronicle" | "territory";
 
 export type ConfirmDeleteTarget =
   | { kind: "type"; id: string; title: string }
   | { kind: "entity"; id: string; title: string }
-  | { kind: "relationship"; id: string; title: string };
+  | { kind: "relationship"; id: string; title: string }
+  | { kind: "attribute"; typeId: string; id: string; title: string };
 
 export type ArchiveModalState =
   | { kind: "none" }
@@ -23,6 +24,7 @@ export type ArchiveModalState =
   | { kind: "createRelationship"; defaultSourceId?: string }
   | { kind: "editRelationship"; relationshipId: string }
   | { kind: "addAttribute"; typeId: string }
+  | { kind: "editAttribute"; typeId: string; attributeId: string }
   | { kind: "confirmDelete"; target: ConfirmDeleteTarget };
 
 type ArchiveStore = {
@@ -93,7 +95,11 @@ export const useArchiveStore = create<ArchiveStore>((set, get) => ({
 
       const sel = get().selectedEntityId;
       if (sel && !entities.some((e) => e.id === sel)) {
-        set({ selectedEntityId: null, mode: "graph" });
+        const mode = get().mode;
+        set({
+          selectedEntityId: null,
+          ...(mode === "dossier" ? { mode: "graph" as const } : {}),
+        });
       }
     } catch (e) {
       set({

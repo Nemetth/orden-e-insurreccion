@@ -18,6 +18,34 @@ interface SimNode extends d3.SimulationNodeDatum {
   color: string;
 }
 
+function tensionEdgeStyle(level: number): { color: string; width: number } {
+  const L = Math.max(0, Math.min(100, level));
+  const t = L / 100;
+  const c1: [number, number, number] = [45, 107, 74];
+  const c2: [number, number, number] = [201, 162, 39];
+  const c3: [number, number, number] = [155, 44, 44];
+  let rgb: [number, number, number];
+  if (t <= 0.5) {
+    const u = t / 0.5;
+    rgb = [
+      Math.round(c1[0] + (c2[0] - c1[0]) * u),
+      Math.round(c1[1] + (c2[1] - c1[1]) * u),
+      Math.round(c1[2] + (c2[2] - c1[2]) * u),
+    ];
+  } else {
+    const u = (t - 0.5) / 0.5;
+    rgb = [
+      Math.round(c2[0] + (c3[0] - c2[0]) * u),
+      Math.round(c2[1] + (c3[1] - c2[1]) * u),
+      Math.round(c2[2] + (c3[2] - c2[2]) * u),
+    ];
+  }
+  return {
+    color: `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`,
+    width: 0.85 + (L / 100) * 4.5,
+  };
+}
+
 export function GraphCanvas({
   entities,
   relationships,
@@ -79,6 +107,7 @@ export function GraphCanvas({
         source: r.source_entity_id,
         target: r.target_entity_id,
         label: r.label ?? r.relation_key,
+        tension: r.tension_level ?? 50,
       }));
 
     const linkForce = d3
@@ -100,8 +129,9 @@ export function GraphCanvas({
       .selectAll("line")
       .data(linkData)
       .join("line")
-      .attr("stroke-opacity", 0.9)
-      .attr("stroke-width", 1.25);
+      .attr("stroke-opacity", 0.92)
+      .attr("stroke", (d) => tensionEdgeStyle(d.tension).color)
+      .attr("stroke-width", (d) => tensionEdgeStyle(d.tension).width);
 
     const gLabels = gZoom.append("g");
 

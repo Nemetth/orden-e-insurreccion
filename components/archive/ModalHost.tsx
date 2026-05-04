@@ -3,6 +3,7 @@
 import { useArchiveStore } from "@/store/archive-store";
 
 import { AddAttributeModal } from "./modals/AddAttributeModal";
+import { EditAttributeModal } from "./modals/EditAttributeModal";
 import { ConfirmDeleteModal } from "./modals/ConfirmDeleteModal";
 import { CreateEntityModal } from "./modals/CreateEntityModal";
 import { CreateRelationshipModal } from "./modals/CreateRelationshipModal";
@@ -45,6 +46,14 @@ export function ModalHost() {
       );
     case "addAttribute":
       return <AddAttributeModal key={modal.typeId} typeId={modal.typeId} />;
+    case "editAttribute":
+      return (
+        <EditAttributeModal
+          key={`${modal.typeId}-${modal.attributeId}`}
+          typeId={modal.typeId}
+          attributeId={modal.attributeId}
+        />
+      );
     case "confirmDelete":
       return (
         <ConfirmDeleteModal
